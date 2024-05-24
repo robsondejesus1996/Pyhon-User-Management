@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request
-from database.cliente import CLIENTES
+from database.models.cliente import Cliente
 
 
 cliente_route = Blueprint('cliente', __name__)
@@ -7,7 +7,8 @@ cliente_route = Blueprint('cliente', __name__)
 @cliente_route.route('/')
 def lista_clientes():
     """Listar os Clientes"""
-    return render_template('lista_clientes.html',clientes=CLIENTES)
+    clientes = Cliente.select()
+    return render_template('lista_clientes.html',clientes=clientes)
 
 @cliente_route.route('/', methods=['POST'])
 def inserir_cliente():
@@ -15,13 +16,10 @@ def inserir_cliente():
 
     data = request.json
 
-    novo_usuario = {
-        "id": len(CLIENTES) + 1,
-        "nome": data['nome'],
-        "email": data['email'],
-    }
-
-    CLIENTES.append(novo_usuario)
+    novo_usuario = Cliente.create(
+        nome = data['nome'],
+        email = data['email'],
+    )
 
 
     return render_template('item_cliente.html', cliente=novo_usuario)
@@ -35,32 +33,27 @@ def form_cliente():
 @cliente_route.route('/<int:cliente_id>')
 def detalhe_cliente(cliente_id):
     """ Exibir detalhes do cliente """
-    cliente = list(filter(lambda c: c['id'] == cliente_id, CLIENTES)) [0]
+
+    cliente = Cliente.get_by_id(cliente_id)
     return render_template('detalhe_cliente.html', cliente=cliente)  
 
 @cliente_route.route('/<int:cliente_id>/edit')
 def form_edit_cliente (cliente_id):
     """ Formulario para editar um cliente """
-    cliente = None
-    for c in CLIENTES:
-        if c['id'] == cliente_id:
-            cliente = c
+    cliente = Cliente.get_by_id(cliente_id)
 
     return render_template('form_cliente.html', cliente=cliente)  
 
 @cliente_route.route('/<int:cliente_id>/update', methods=['PUT'])
 def atualizar_cliente (cliente_id):
     """ Atualizar informações do cliente """
-    cliente_editado = None
-
+    
     data = request.json
 
-    for c in CLIENTES:
-        if c['id'] == cliente_id:
-            c['nome'] = data['nome']     
-            c['email'] = data['email']
-
-            cliente_editado = c
+    cliente_editado = Cliente.get_by_id(cliente_id)
+    cliente_editado.nome = data['nome']
+    cliente_editado.email = data['email']
+    cliente_editado.save()
 
     return render_template('item_cliente.html', cliente=cliente_editado)        
       
@@ -68,6 +61,6 @@ def atualizar_cliente (cliente_id):
 @cliente_route.route('/<int:cliente_id>/delete', methods=['DELETE'])
 def delete_cliente(cliente_id):
     """ Deletar um cliente """
-    global CLIENTES
-    CLIENTES = [ c for c in CLIENTES if c['id'] != cliente_id ]  
+    cliente = Cliente.get_by_id(cliente_id)
+    cliente.delete_instance()
     return {'deleted': 'ok'}
